@@ -1,0 +1,14 @@
+# Configuration file
+model:
+  path: "/data/hzj/model/BGE-VL-base"
+  cache_dir: "data/cache"
+  device: "cuda:1"
+  max_token_length: 70
+  stride: 50
+  faiss:
+    dim: 512
+    nbits: 512
+    use_gpu: true
+data:
+  image_folder: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/COCO/images/test2014"
+  text_jsonl: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/okvqa/train_jsonl/okvqa_train_corpus.jsonl"
