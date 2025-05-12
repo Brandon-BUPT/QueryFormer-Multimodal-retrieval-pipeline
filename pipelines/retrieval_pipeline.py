@@ -74,6 +74,8 @@ class RetrievalPipeline(BasePipeline):
             return self._retrieve_by_image(input_data["image"])
         elif query_type == "multimodal2text":
             return self._retrieve_by_image_and_text(input_data["image"], input_data["text"])
+        elif query_type == "text2text":
+            return self._retrieve_text_by_text(input_data["text"])
         else:
             raise ValueError(f"Unsupported query type: {query_type}")
     
@@ -102,6 +104,38 @@ class RetrievalPipeline(BasePipeline):
                 "type": "image"
             })
         
+        return results
+    
+    def _retrieve_text_by_text(self, query_text: str) -> List[Dict[str, Any]]:
+        """Retrieve texts based on text query."""
+        print(f"Processing text2text query: {query_text[:50]}...")
+        query_features = encode_text(
+            self.components["model"], 
+            self.components["tokenizer"], 
+            query_text, 
+            self.config["max_token_length"], 
+            self.config["stride"]
+        )
+        
+        # Search in the text index
+        D, I = self.preprocessed_data["text_index"].search(
+            query_features.numpy().astype(np.float32), 
+            self.config["top_k"]
+        )
+        
+        results = []
+        for i, similarity in zip(I[0], D[0]):
+            if i < len(self.preprocessed_data["text_ids"]):
+                results.append({
+                    "id": self.preprocessed_data["text_ids"][i],
+                    "content": self.preprocessed_data["text_contents"][i],
+                    "similarity": float(similarity),
+                    "type": "text"
+                })
+            else:
+                print(f"Warning: Invalid index {i} for text_ids with length {len(self.preprocessed_data['text_ids'])}")
+        
+        print(f"Found {len(results)} matching texts for text query")
         return results
     
     def _retrieve_by_image(self, query_image: Image.Image) -> List[Dict[str, Any]]:

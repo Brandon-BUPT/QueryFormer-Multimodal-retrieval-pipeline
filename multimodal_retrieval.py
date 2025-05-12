@@ -37,6 +37,22 @@ def main():
                 
                 btn.click(fn=text2image_search, inputs=txt, outputs=gallery)
 
+            with gr.Tab("Text → Text"):
+                txt_query = gr.Textbox(label="Enter your text query")
+                btn_txt = gr.Button("Search Texts")
+                out_text_result = gr.Markdown(label="Top Matching Texts")
+                
+                def text2text_search(query):
+                    if not query or query.strip() == "":
+                        return "Please enter a text query."
+                    
+                    results = pipeline.run({"query_type": "text2text", "text": query})
+                    if not results:
+                        return "No matching texts found."
+                    return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in results])
+                
+                btn_txt.click(fn=text2text_search, inputs=txt_query, outputs=out_text_result)
+
             with gr.Tab("Image → Text"):
                 img = gr.Image(label="Upload Image", type="pil")
                 btn2 = gr.Button("Search Texts")
