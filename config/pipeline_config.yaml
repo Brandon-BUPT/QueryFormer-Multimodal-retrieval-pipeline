@@ -1,0 +1,41 @@
+# Pipeline Configuration
+
+# General pipeline settings
+model_config_path: "config/model_config.yaml"
+max_token_length: 512
+stride: 256
+top_k: 5
+
+# Data configuration
+data:
+  image_folder: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/COCO/images/test2014"
+  text_jsonl: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/okvqa/train_jsonl/okvqa_train_corpus.jsonl"
+
+# Preprocessor configuration
+preprocessor:
+  type: "standard"
+  params:
+    cache_dir: "data/cache"
+    max_token_length: 512
+    stride: 256
+
+# Encoder configuration
+encoder:
+  type: "joint"
+  params:
+    # Any specific encoder params would go here
+    combine_method: "average"
+
+# Indexer configuration
+indexer:
+  type: "faiss_lsh"
+  params:
+    dim: 512
+    nbits: 256
+    use_gpu: true
+
+# Retriever configuration
+retriever:
+  type: "standard"
+  params:
+    top_k: 5 
