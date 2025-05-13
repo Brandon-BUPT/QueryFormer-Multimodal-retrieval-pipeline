@@ -1,0 +1,48 @@
+# 查询分析管道配置
+
+# 继承基本配置
+model_config_path: "config/model_config.yaml"
+max_token_length: 512
+stride: 256
+top_k: 5
+
+# 数据配置
+data:
+  image_folder: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/COCO/images/test2014"
+  text_jsonl: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/dataset/okvqa/train_jsonl/okvqa_train_corpus.jsonl"
+
+# 查询分析器配置
+query_analyzer:
+  model_path: "/data/hzj/projects/multi-modal-retrieval/baseline/MMGenerativeIR/Llama-3.2-11B-Vision-Instruct"
+  max_attempts: 3
+  temperature: 0.3
+  max_new_tokens: 1024
+  device: "cuda:0"
+
+# 预处理器配置
+preprocessor:
+  type: "standard"
+  params:
+    cache_dir: "data/cache"
+    max_token_length: 512
+    stride: 256
+
+# 编码器配置
+encoder:
+  type: "joint"
+  params:
+    combine_method: "average"
+
+# 索引器配置
+indexer:
+  type: "faiss_lsh"
+  params:
+    dim: 512
+    nbits: 256
+    use_gpu: true
+
+# 检索器配置
+retriever:
+  type: "standard"
+  params:
+    top_k: 5

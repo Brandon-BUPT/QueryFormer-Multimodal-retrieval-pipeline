@@ -8,89 +8,128 @@ from pipelines import PipelineRegistry
 
 def main():
     # 确保配置文件路径正确
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+    retrieval_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
                               "config/pipeline_config.yaml")
+    query_analysis_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                              "config/query_analysis_config.yaml")
     
-    print(f"Loading pipeline configuration from {config_path}")
+    print(f"Loading pipeline configuration from {retrieval_config_path}")
     # 加载pipeline配置
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+    with open(retrieval_config_path, "r") as f:
+        retrieval_config = yaml.safe_load(f)
+    
+    with open(query_analysis_config_path, "r") as f:
+        query_analysis_config = yaml.safe_load(f)
     
     # 从注册表创建检索pipeline
-    pipeline = PipelineRegistry.get_pipeline("retrieval", config)
+    retrieval_pipeline = PipelineRegistry.get_pipeline("retrieval", retrieval_config)
+    query_analysis_pipeline = PipelineRegistry.get_pipeline("query_analysis", query_analysis_config)
     
     # Gradio UI
     with gr.Blocks(title="BGE-VL Multimodal Retrieval System") as demo:
-        gr.Markdown("## 🔍 Multimodal Retrieval System (FAISS LSH)")
+        gr.Markdown("## 🔍 多模态检索系统 (FAISS LSH)")
 
         with gr.Tabs():
             with gr.Tab("Text → Image"):
-                txt = gr.Textbox(label="Enter your text query")
-                btn = gr.Button("Search Images")
-                gallery = gr.Gallery(label="Top Matching Images", columns=3)
+                txt = gr.Textbox(label="输入文本查询")
+                btn = gr.Button("搜索图像")
+                gallery = gr.Gallery(label="匹配的图像", columns=3)
                 
                 def text2image_search(query):
                     if not query or query.strip() == "":
                         return []
-                    results = pipeline.run({"query_type": "text2image", "text": query})
+                    results = retrieval_pipeline.run({"query_type": "text2image", "text": query})
                     return [item["path"] for item in results]
                 
                 btn.click(fn=text2image_search, inputs=txt, outputs=gallery)
 
             with gr.Tab("Text → Text"):
-                txt_query = gr.Textbox(label="Enter your text query")
-                btn_txt = gr.Button("Search Texts")
-                out_text_result = gr.Markdown(label="Top Matching Texts")
+                txt_query = gr.Textbox(label="输入文本查询")
+                btn_txt = gr.Button("搜索文本")
+                out_text_result = gr.Markdown(label="匹配的文本")
                 
                 def text2text_search(query):
                     if not query or query.strip() == "":
-                        return "Please enter a text query."
+                        return "请输入查询文本。"
                     
-                    results = pipeline.run({"query_type": "text2text", "text": query})
+                    results = retrieval_pipeline.run({"query_type": "text2text", "text": query})
                     if not results:
-                        return "No matching texts found."
+                        return "未找到匹配的文本。"
                     return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in results])
                 
                 btn_txt.click(fn=text2text_search, inputs=txt_query, outputs=out_text_result)
 
             with gr.Tab("Image → Text"):
-                img = gr.Image(label="Upload Image", type="pil")
-                btn2 = gr.Button("Search Texts")
-                out_text = gr.Markdown(label="Top Matching Texts")
+                img = gr.Image(label="上传图像", type="pil")
+                btn2 = gr.Button("搜索文本")
+                out_text = gr.Markdown(label="匹配的文本")
                 
                 def image2text_search(image):
                     if image is None:
-                        return "Please upload an image."
+                        return "请上传图像。"
                     
-                    results = pipeline.run({"query_type": "image2text", "image": image})
+                    results = retrieval_pipeline.run({"query_type": "image2text", "image": image})
                     if not results:
-                        return "No matching texts found."
+                        return "未找到匹配的文本。"
                     return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in results])
                 
                 btn2.click(fn=image2text_search, inputs=img, outputs=out_text)
 
             with gr.Tab("Image + Text → Text"):
-                img2 = gr.Image(label="Upload Image", type="pil")
-                txt2 = gr.Textbox(label="Enter accompanying text")
-                btn3 = gr.Button("Search Texts")
-                out_text2 = gr.Markdown(label="Top Matching Texts")
-                
-                def multimodal2text_search(image, text):
-                    if image is None:
-                        return "Please upload an image."
-                    if not text or text.strip() == "":
-                        return "Please enter some text."
+                with gr.Row():
+                    with gr.Column():
+                        img2 = gr.Image(label="上传图像", type="pil")
+                        txt2 = gr.Textbox(label="输入文本查询")
+                        use_analysis = gr.Checkbox(label="使用查询分析", value=True)
+                        btn3 = gr.Button("搜索文本")
                     
-                    results = pipeline.run({
-                        "query_type": "multimodal2text", 
-                        "image": image, 
-                        "text": text
-                    })
-                    if not results:
-                        return "No matching texts found."
-                    return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in results])
+                    with gr.Column():
+                        analysis_info = gr.Markdown(label="查询分析结果", value="")
                 
-                btn3.click(fn=multimodal2text_search, inputs=[img2, txt2], outputs=out_text2)
+                out_text2 = gr.Markdown(label="匹配的文本")
+                
+                def multimodal2text_search(image, text, use_query_analysis):
+                    if image is None:
+                        return "请上传图像。", "未进行查询分析"
+                    if not text or text.strip() == "":
+                        return "请输入查询文本。", "未进行查询分析"
+                    
+                    if use_query_analysis:
+                        # 使用查询分析管道
+                        results = query_analysis_pipeline.run({
+                            "query_type": "multimodal2text", 
+                            "image": image, 
+                            "text": text
+                        })
+                        
+                        # 提取分析信息
+                        analysis_markdown = ""
+                        if results.get("enhanced_query"):
+                            analysis_markdown += f"**原始查询**: {results['original_query']}\n\n"
+                            analysis_markdown += f"**增强查询**: {results['enhanced_query']}\n\n"
+                            analysis_markdown += "**关键词**:\n"
+                            analysis_markdown += f"- 显式关键词: {', '.join(results['keywords']['explicit'])}\n"
+                            analysis_markdown += f"- 隐式关键词: {', '.join(results['keywords']['implicit'])}\n"
+                        else:
+                            analysis_markdown = "查询分析失败，使用原始查询。"
+                        
+                        # 返回检索结果和分析信息
+                        retrieval_results = results["results"]
+                        if not retrieval_results:
+                            return "未找到匹配的文本。", analysis_markdown
+                        return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in retrieval_results]), analysis_markdown
+                    else:
+                        # 使用标准检索管道
+                        results = retrieval_pipeline.run({
+                            "query_type": "multimodal2text", 
+                            "image": image, 
+                            "text": text
+                        })
+                        if not results:
+                            return "未找到匹配的文本。", "未使用查询分析"
+                        return "\n\n".join([f"**[{item['id']}]**  \n{item['content']}" for item in results]), "未使用查询分析"
+                
+                btn3.click(fn=multimodal2text_search, inputs=[img2, txt2, use_analysis], outputs=[out_text2, analysis_info])
 
     # 启动Gradio界面
     print("Starting Gradio interface...")
